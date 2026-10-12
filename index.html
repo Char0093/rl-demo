@@ -1,0 +1,947 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Reinforcement Learning Demo - Q-Learning GridWorld</title>
+  <style>
+    :root {
+      --bg: #0f172a;
+      --card-bg: #1e293b;
+      --card-border: #334155;
+      --primary: #38bdf8;
+      --primary-hover: #0284c7;
+      --accent: #10b981;
+      --accent-hover: #059669;
+      --danger: #ef4444;
+      --danger-hover: #dc2626;
+      --warning: #f59e0b;
+      --text: #f8fafc;
+      --text-muted: #94a3b8;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+    }
+
+    body {
+      background-color: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      padding: 1.5rem;
+    }
+
+    header {
+      text-align: center;
+      margin-bottom: 1.5rem;
+    }
+
+    header h1 {
+      font-size: 2rem;
+      font-weight: 800;
+      background: linear-gradient(135deg, #38bdf8 0%, #818cf8 50%, #c084fc 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      margin-bottom: 0.5rem;
+    }
+
+    header p {
+      color: var(--text-muted);
+      font-size: 1rem;
+      max-width: 720px;
+      margin: 0 auto;
+    }
+
+    .main-container {
+      display: grid;
+      grid-template-columns: 1fr 380px;
+      gap: 1.5rem;
+      max-width: 1200px;
+      margin: 0 auto;
+      width: 100%;
+    }
+
+    @media (max-width: 960px) {
+      .main-container {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .card {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 12px;
+      padding: 1.25rem;
+      box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3);
+    }
+
+    .canvas-panel {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 1rem;
+    }
+
+    .canvas-wrapper {
+      position: relative;
+      background: #090d16;
+      border-radius: 8px;
+      border: 2px solid var(--card-border);
+      overflow: hidden;
+      box-shadow: inset 0 2px 8px rgba(0, 0, 0, 0.5);
+    }
+
+    canvas {
+      display: block;
+      cursor: crosshair;
+    }
+
+    .toolbar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      justify-content: center;
+      align-items: center;
+      width: 100%;
+    }
+
+    .tool-group {
+      display: inline-flex;
+      background: #090d16;
+      border-radius: 8px;
+      padding: 3px;
+      border: 1px solid var(--card-border);
+    }
+
+    .tool-btn {
+      background: transparent;
+      border: none;
+      color: var(--text-muted);
+      padding: 0.4rem 0.75rem;
+      font-size: 0.85rem;
+      border-radius: 6px;
+      cursor: pointer;
+      font-weight: 500;
+      transition: all 0.2s;
+    }
+
+    .tool-btn:hover {
+      color: var(--text);
+    }
+
+    .tool-btn.active {
+      background: var(--primary);
+      color: #0f172a;
+      font-weight: 700;
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.4rem;
+      padding: 0.55rem 1rem;
+      font-size: 0.9rem;
+      font-weight: 600;
+      border-radius: 8px;
+      border: none;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .btn-primary {
+      background: var(--primary);
+      color: #0f172a;
+    }
+    .btn-primary:hover {
+      background: var(--primary-hover);
+    }
+
+    .btn-accent {
+      background: var(--accent);
+      color: #0f172a;
+    }
+    .btn-accent:hover {
+      background: var(--accent-hover);
+    }
+
+    .btn-secondary {
+      background: #334155;
+      color: var(--text);
+    }
+    .btn-secondary:hover {
+      background: #475569;
+    }
+
+    .btn-danger {
+      background: var(--danger);
+      color: var(--text);
+    }
+    .btn-danger:hover {
+      background: var(--danger-hover);
+    }
+
+    .controls-panel {
+      display: flex;
+      flex-direction: column;
+      gap: 1.25rem;
+    }
+
+    .section-title {
+      font-size: 1rem;
+      font-weight: 700;
+      color: var(--primary);
+      border-bottom: 1px solid var(--card-border);
+      padding-bottom: 0.4rem;
+      margin-bottom: 0.75rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .slider-group {
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+    }
+
+    .slider-item {
+      display: flex;
+      flex-direction: column;
+      gap: 0.25rem;
+    }
+
+    .slider-label {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.85rem;
+      color: var(--text-muted);
+    }
+
+    .slider-label span:last-child {
+      color: var(--text);
+      font-weight: 600;
+      font-family: monospace;
+    }
+
+    input[type="range"] {
+      accent-color: var(--primary);
+      height: 6px;
+      background: #090d16;
+      border-radius: 3px;
+      cursor: pointer;
+    }
+
+    .checkbox-item {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-size: 0.85rem;
+      color: var(--text);
+      cursor: pointer;
+    }
+
+    .stats-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0.5rem;
+    }
+
+    .stat-box {
+      background: #090d16;
+      padding: 0.6rem 0.8rem;
+      border-radius: 6px;
+      border: 1px solid #1e293b;
+    }
+
+    .stat-name {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .stat-val {
+      font-size: 1.15rem;
+      font-weight: 700;
+      color: var(--primary);
+      font-family: monospace;
+      margin-top: 0.15rem;
+    }
+
+    .chart-container {
+      background: #090d16;
+      border-radius: 6px;
+      padding: 0.5rem;
+      border: 1px solid #1e293b;
+    }
+
+    #chartCanvas {
+      width: 100%;
+      height: 100px;
+      display: block;
+    }
+
+    .legend {
+      display: flex;
+      justify-content: space-around;
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      margin-top: 0.5rem;
+      padding: 0.4rem;
+      background: #090d16;
+      border-radius: 6px;
+    }
+
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 0.3rem;
+    }
+
+    .legend-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+    }
+
+    footer {
+      text-align: center;
+      color: var(--text-muted);
+      font-size: 0.85rem;
+      margin-top: 2rem;
+      padding-top: 1rem;
+      border-top: 1px solid #1e293b;
+    }
+
+    footer code {
+      background: #1e293b;
+      padding: 0.2rem 0.4rem;
+      border-radius: 4px;
+      color: #38bdf8;
+      font-size: 0.8rem;
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <h1>Interactive Reinforcement Learning Demo</h1>
+    <p>Watch an agent learn optimal navigation in a 2D GridWorld using <strong>Tabular Q-Learning</strong> with the Bellman Equation.</p>
+  </header>
+
+  <div class="main-container">
+    <!-- Left: Canvas GridWorld and Direct Interactive Tools -->
+    <div class="card canvas-panel">
+      <div class="toolbar">
+        <div class="tool-group">
+          <button class="tool-btn active" data-tool="wall">🧱 Wall</button>
+          <button class="tool-btn" data-tool="trap">⚡ Trap</button>
+          <button class="tool-btn" data-tool="start">🚩 Start</button>
+          <button class="tool-btn" data-tool="goal">⭐ Goal</button>
+          <button class="tool-btn" data-tool="clear">🧹 Erase</button>
+        </div>
+        <select id="presetSelect" class="btn btn-secondary" style="font-size: 0.85rem; padding: 0.45rem;">
+          <option value="classic">Preset: Classic Maze</option>
+          <option value="cliff">Preset: Cliff Walking</option>
+          <option value="bridge">Preset: Narrow Bridge</option>
+          <option value="empty">Preset: Empty Grid</option>
+        </select>
+        <button id="btnShowPolicy" class="btn btn-secondary" style="font-size: 0.85rem;">🔄 Policy Arrows: ON</button>
+      </div>
+
+      <div class="canvas-wrapper">
+        <canvas id="gridCanvas" width="500" height="500"></canvas>
+      </div>
+
+      <div class="toolbar">
+        <button id="btnPlay" class="btn btn-primary">▶ Run Agent</button>
+        <button id="btnStep" class="btn btn-secondary">⏭ Step</button>
+        <button id="btnFastTrain" class="btn btn-accent">⚡ Fast Train (100 Ep)</button>
+        <button id="btnResetAgent" class="btn btn-secondary">🔄 Reset Agent</button>
+        <button id="btnResetQ" class="btn btn-danger">🗑 Clear Q-Values</button>
+      </div>
+
+      <div class="legend">
+        <div class="legend-item"><span class="legend-dot" style="background:#38bdf8;"></span> Agent</div>
+        <div class="legend-item"><span class="legend-dot" style="background:#10b981;"></span> Start (🚩)</div>
+        <div class="legend-item"><span class="legend-dot" style="background:#fbbf24;"></span> Goal (⭐ +10)</div>
+        <div class="legend-item"><span class="legend-dot" style="background:#ef4444;"></span> Trap (⚡ -10)</div>
+        <div class="legend-item"><span class="legend-dot" style="background:#475569;"></span> Wall (Blocked)</div>
+      </div>
+    </div>
+
+    <!-- Right: RL Parameters & Performance Metrics -->
+    <div class="controls-panel">
+      <!-- Live Statistics -->
+      <div class="card">
+        <div class="section-title">Training Metrics</div>
+        <div class="stats-grid">
+          <div class="stat-box">
+            <div class="stat-name">Episode</div>
+            <div class="stat-val" id="statEpisode">0</div>
+          </div>
+          <div class="stat-box">
+            <div class="stat-name">Current Step</div>
+            <div class="stat-val" id="statStep">0</div>
+          </div>
+          <div class="stat-box">
+            <div class="stat-name">Last Reward</div>
+            <div class="stat-val" id="statReward">0.0</div>
+          </div>
+          <div class="stat-box">
+            <div class="stat-name">Avg Steps (10 Ep)</div>
+            <div class="stat-val" id="statAvgSteps">-</div>
+          </div>
+        </div>
+
+        <div style="margin-top: 1rem;">
+          <div style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 0.3rem;">Steps per Episode (Learning Convergence)</div>
+          <div class="chart-container">
+            <canvas id="chartCanvas" width="340" height="100"></canvas>
+          </div>
+        </div>
+      </div>
+
+      <!-- Hyperparameters & Settings -->
+      <div class="card">
+        <div class="section-title">Hyperparameters</div>
+        <div class="slider-group">
+          <div class="slider-item">
+            <div class="slider-label">
+              <span>Learning Rate (α)</span>
+              <span id="valAlpha">0.20</span>
+            </div>
+            <input type="range" id="sliderAlpha" min="0.01" max="1.0" step="0.01" value="0.20">
+          </div>
+
+          <div class="slider-item">
+            <div class="slider-label">
+              <span>Discount Factor (γ)</span>
+              <span id="valGamma">0.90</span>
+            </div>
+            <input type="range" id="sliderGamma" min="0.10" max="0.99" step="0.01" value="0.90">
+          </div>
+
+          <div class="slider-item">
+            <div class="slider-label">
+              <span>Exploration (ε)</span>
+              <span id="valEpsilon">0.20</span>
+            </div>
+            <input type="range" id="sliderEpsilon" min="0.0" max="1.0" step="0.01" value="0.20">
+          </div>
+
+          <label class="checkbox-item">
+            <input type="checkbox" id="chkEpsilonDecay" checked>
+            <span>Decay ε automatically each episode</span>
+          </label>
+
+          <div class="slider-item" style="margin-top: 0.5rem;">
+            <div class="slider-label">
+              <span>Speed (Delay ms)</span>
+              <span id="valSpeed">50 ms</span>
+            </div>
+            <input type="range" id="sliderSpeed" min="0" max="300" step="10" value="50">
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <footer>
+    Bellman Update Formula: <code>Q(s, a) ← Q(s, a) + α [ r + γ max Q(s', a') - Q(s, a) ]</code> | Standalone RL Demo
+  </footer>
+
+  <script>
+    // --- Environment Setup ---
+    const GRID_SIZE = 7;
+    const canvas = document.getElementById('gridCanvas');
+    const ctx = canvas.getContext('2d');
+    const chartCanvas = document.getElementById('chartCanvas');
+    const chartCtx = chartCanvas.getContext('2d');
+
+    const CELL_SIZE = canvas.width / GRID_SIZE;
+
+    // Actions: 0: UP, 1: RIGHT, 2: DOWN, 3: LEFT
+    const ACTIONS = [
+      { dr: -1, dc: 0, name: 'UP', arrow: '↑' },
+      { dr: 0, dc: 1, name: 'RIGHT', arrow: '→' },
+      { dr: 1, dc: 0, name: 'DOWN', arrow: '↓' },
+      { dr: 0, dc: -1, name: 'LEFT', arrow: '←' }
+    ];
+
+    const CELL_EMPTY = 0;
+    const CELL_WALL = 1;
+    const CELL_TRAP = 2;
+
+    let grid = [];
+    let startPos = { r: 0, c: 0 };
+    let goalPos = { r: GRID_SIZE - 1, c: GRID_SIZE - 1 };
+    let agentPos = { r: 0, c: 0 };
+
+    // Q-Table: Map of "r,c" -> [q0, q1, q2, q3]
+    let Q = {};
+
+    // Hyperparameters
+    let alpha = 0.20;
+    let gamma = 0.90;
+    let epsilon = 0.20;
+    let epsilonDecay = true;
+    let speedDelay = 50;
+
+    // Metrics
+    let episodeCount = 0;
+    let currentStep = 0;
+    let totalSteps = 0;
+    let lastReward = 0;
+    let stepHistory = [];
+    let rewardHistory = [];
+
+    // State & Flags
+    let isRunning = false;
+    let loopTimeout = null;
+    let currentTool = 'wall';
+    let showPolicyArrows = true;
+    let isMouseDown = false;
+
+    function initGrid() {
+      grid = [];
+      for (let r = 0; r < GRID_SIZE; r++) {
+        grid[r] = [];
+        for (let c = 0; c < GRID_SIZE; c++) {
+          grid[r][c] = CELL_EMPTY;
+        }
+      }
+    }
+
+    function initQ() {
+      Q = {};
+      for (let r = 0; r < GRID_SIZE; r++) {
+        for (let c = 0; c < GRID_SIZE; c++) {
+          Q[`${r},${c}`] = [0, 0, 0, 0];
+        }
+      }
+    }
+
+    function getQ(r, c) {
+      const key = `${r},${c}`;
+      if (!Q[key]) Q[key] = [0, 0, 0, 0];
+      return Q[key];
+    }
+
+    function loadPreset(name) {
+      initGrid();
+      if (name === 'classic') {
+        startPos = { r: 0, c: 0 };
+        goalPos = { r: GRID_SIZE - 1, c: GRID_SIZE - 1 };
+        // Maze walls
+        for (let c = 1; c < GRID_SIZE - 1; c++) grid[1][c] = CELL_WALL;
+        for (let c = 0; c < GRID_SIZE - 2; c++) grid[3][c] = CELL_WALL;
+        for (let c = 2; c < GRID_SIZE; c++) grid[5][c] = CELL_WALL;
+        grid[2][2] = CELL_TRAP;
+        grid[4][4] = CELL_TRAP;
+      } else if (name === 'cliff') {
+        startPos = { r: GRID_SIZE - 1, c: 0 };
+        goalPos = { r: GRID_SIZE - 1, c: GRID_SIZE - 1 };
+        // Row of traps between start and goal
+        for (let c = 1; c < GRID_SIZE - 1; c++) {
+          grid[GRID_SIZE - 1][c] = CELL_TRAP;
+        }
+      } else if (name === 'bridge') {
+        startPos = { r: Math.floor(GRID_SIZE / 2), c: 0 };
+        goalPos = { r: Math.floor(GRID_SIZE / 2), c: GRID_SIZE - 1 };
+        const mid = Math.floor(GRID_SIZE / 2);
+        for (let r = 0; r < GRID_SIZE; r++) {
+          if (r !== mid) {
+            for (let c = 1; c < GRID_SIZE - 1; c++) {
+              grid[r][c] = CELL_WALL;
+            }
+          }
+        }
+        grid[mid][Math.floor(GRID_SIZE / 2)] = CELL_TRAP;
+      } else if (name === 'empty') {
+        startPos = { r: 0, c: 0 };
+        goalPos = { r: GRID_SIZE - 1, c: GRID_SIZE - 1 };
+      }
+      resetAgent();
+      render();
+    }
+
+    function resetAgent() {
+      agentPos = { r: startPos.r, c: startPos.c };
+      currentStep = 0;
+      updateStats();
+      render();
+    }
+
+    // --- Action Selection ---
+    function chooseAction(r, c) {
+      if (Math.random() < epsilon) {
+        return Math.floor(Math.random() * 4); // Explore
+      }
+      // Exploit: argmax Q
+      const qVals = getQ(r, c);
+      let maxVal = -Infinity;
+      let bestActions = [];
+      for (let a = 0; a < 4; a++) {
+        if (qVals[a] > maxVal) {
+          maxVal = qVals[a];
+          bestActions = [a];
+        } else if (qVals[a] === maxVal) {
+          bestActions.push(a);
+        }
+      }
+      return bestActions[Math.floor(Math.random() * bestActions.length)];
+    }
+
+    // --- Single RL Step ---
+    function stepEnvironment() {
+      const s = { r: agentPos.r, c: agentPos.c };
+      const action = chooseAction(s.r, s.c);
+      const actObj = ACTIONS[action];
+
+      let nr = s.r + actObj.dr;
+      let nc = s.c + actObj.dc;
+
+      let reward = -0.04; // standard step cost
+      let isTerminal = false;
+
+      // Wall or boundary collision
+      if (nr < 0 || nr >= GRID_SIZE || nc < 0 || nc >= GRID_SIZE || grid[nr][nc] === CELL_WALL) {
+        nr = s.r;
+        nc = s.c;
+        reward = -0.5; // Bump into wall penalty
+      } else if (nr === goalPos.r && nc === goalPos.c) {
+        reward = 10.0; // Goal achieved
+        isTerminal = true;
+      } else if (grid[nr][nc] === CELL_TRAP) {
+        reward = -10.0; // Trap fell
+        isTerminal = true;
+      }
+
+      // Bellman Update
+      const qOld = getQ(s.r, s.c)[action];
+      let maxNextQ = 0;
+      if (!isTerminal) {
+        const nextQ = getQ(nr, nc);
+        maxNextQ = Math.max(...nextQ);
+      }
+      const qTarget = reward + gamma * maxNextQ;
+      Q[`${s.r},${s.c}`][action] = qOld + alpha * (qTarget - qOld);
+
+      // Move agent
+      agentPos = { r: nr, c: nc };
+      currentStep++;
+      totalSteps++;
+
+      if (currentStep >= 100) {
+        isTerminal = true; // timeout
+      }
+
+      if (isTerminal) {
+        episodeCount++;
+        lastReward = reward;
+        stepHistory.push(currentStep);
+        rewardHistory.push(lastReward);
+        if (stepHistory.length > 50) stepHistory.shift();
+
+        if (epsilonDecay && epsilon > 0.01) {
+          epsilon = Math.max(0.01, epsilon * 0.995);
+          document.getElementById('sliderEpsilon').value = epsilon.toFixed(2);
+          document.getElementById('valEpsilon').innerText = epsilon.toFixed(2);
+        }
+        resetAgent();
+      }
+
+      updateStats();
+      return isTerminal;
+    }
+
+    // --- Training Loop ---
+    function runLoop() {
+      if (!isRunning) return;
+      stepEnvironment();
+      render();
+      loopTimeout = setTimeout(runLoop, speedDelay);
+    }
+
+    function togglePlay() {
+      isRunning = !isRunning;
+      const btn = document.getElementById('btnPlay');
+      if (isRunning) {
+        btn.innerText = '⏸ Pause';
+        btn.classList.replace('btn-primary', 'btn-secondary');
+        runLoop();
+      } else {
+        btn.innerText = '▶ Run Agent';
+        btn.classList.replace('btn-secondary', 'btn-primary');
+        if (loopTimeout) clearTimeout(loopTimeout);
+      }
+    }
+
+    function fastTrain(numEpisodes = 100) {
+      const wasRunning = isRunning;
+      if (isRunning) togglePlay();
+
+      for (let ep = 0; ep < numEpisodes; ep++) {
+        let terminal = false;
+        let guard = 0;
+        while (!terminal && guard < 150) {
+          terminal = stepEnvironment();
+          guard++;
+        }
+      }
+      render();
+      drawChart();
+      if (wasRunning) togglePlay();
+    }
+
+    // --- Rendering ---
+    function render() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      for (let r = 0; r < GRID_SIZE; r++) {
+        for (let c = 0; c < GRID_SIZE; c++) {
+          const x = c * CELL_SIZE;
+          const y = r * CELL_SIZE;
+
+          // Draw base cell background
+          if (grid[r][c] === CELL_WALL) {
+            ctx.fillStyle = '#334155';
+            ctx.fillRect(x, y, CELL_SIZE, CELL_SIZE);
+            // Draw cross-hatch pattern
+            ctx.strokeStyle = '#475569';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.moveTo(x, y);
+            ctx.lineTo(x + CELL_SIZE, y + CELL_SIZE);
+            ctx.stroke();
+          } else if (grid[r][c] === CELL_TRAP) {
+            ctx.fillStyle = '#450a0a';
+            ctx.fillRect(x, y, CELL_SIZE, CELL_SIZE);
+            ctx.font = `${CELL_SIZE * 0.45}px sans-serif`;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText('⚡', x + CELL_SIZE / 2, y + CELL_SIZE / 2);
+          } else if (r === goalPos.r && c === goalPos.c) {
+            ctx.fillStyle = '#064e3b';
+            ctx.fillRect(x, y, CELL_SIZE, CELL_SIZE);
+            ctx.font = `${CELL_SIZE * 0.45}px sans-serif`;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText('⭐', x + CELL_SIZE / 2, y + CELL_SIZE / 2);
+          } else if (r === startPos.r && c === startPos.c) {
+            ctx.fillStyle = '#062e45';
+            ctx.fillRect(x, y, CELL_SIZE, CELL_SIZE);
+            ctx.font = `${CELL_SIZE * 0.45}px sans-serif`;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText('🚩', x + CELL_SIZE / 2, y + CELL_SIZE / 2);
+          } else {
+            // Heatmap color based on max Q
+            const qVals = getQ(r, c);
+            const maxQ = Math.max(...qVals);
+            if (maxQ > 0.1) {
+              const alphaVal = Math.min(0.6, maxQ / 10);
+              ctx.fillStyle = `rgba(56, 189, 248, ${alphaVal})`;
+            } else if (maxQ < -0.1) {
+              const alphaVal = Math.min(0.6, Math.abs(maxQ) / 10);
+              ctx.fillStyle = `rgba(239, 68, 68, ${alphaVal})`;
+            } else {
+              ctx.fillStyle = '#0f172a';
+            }
+            ctx.fillRect(x, y, CELL_SIZE, CELL_SIZE);
+
+            // Policy directional arrows
+            if (showPolicyArrows) {
+              const bestAction = qVals.indexOf(Math.max(...qVals));
+              if (Math.max(...qVals) !== 0 || Math.min(...qVals) !== 0) {
+                ctx.fillStyle = '#94a3b8';
+                ctx.font = `bold ${CELL_SIZE * 0.35}px monospace`;
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText(ACTIONS[bestAction].arrow, x + CELL_SIZE / 2, y + CELL_SIZE / 2);
+              }
+            }
+          }
+
+          // Cell Borders
+          ctx.strokeStyle = '#1e293b';
+          ctx.lineWidth = 1;
+          ctx.strokeRect(x, y, CELL_SIZE, CELL_SIZE);
+        }
+      }
+
+      // Draw Agent
+      const ax = agentPos.c * CELL_SIZE + CELL_SIZE / 2;
+      const ay = agentPos.r * CELL_SIZE + CELL_SIZE / 2;
+      const radius = CELL_SIZE * 0.32;
+
+      // Glow effect
+      ctx.save();
+      ctx.shadowColor = '#38bdf8';
+      ctx.shadowBlur = 12;
+      ctx.fillStyle = '#38bdf8';
+      ctx.beginPath();
+      ctx.arc(ax, ay, radius, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+
+      ctx.fillStyle = '#0f172a';
+      ctx.font = `bold ${radius * 0.9}px sans-serif`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('🤖', ax, ay);
+    }
+
+    function drawChart() {
+      chartCtx.clearRect(0, 0, chartCanvas.width, chartCanvas.height);
+      if (stepHistory.length < 2) return;
+
+      const w = chartCanvas.width;
+      const h = chartCanvas.height;
+      const maxSteps = Math.max(20, ...stepHistory);
+
+      chartCtx.strokeStyle = '#38bdf8';
+      chartCtx.lineWidth = 2;
+      chartCtx.beginPath();
+
+      stepHistory.forEach((val, idx) => {
+        const x = (idx / (stepHistory.length - 1)) * (w - 20) + 10;
+        const y = h - (val / maxSteps) * (h - 20) - 10;
+        if (idx === 0) chartCtx.moveTo(x, y);
+        else chartCtx.lineTo(x, y);
+      });
+      chartCtx.stroke();
+    }
+
+    function updateStats() {
+      document.getElementById('statEpisode').innerText = episodeCount;
+      document.getElementById('statStep').innerText = currentStep;
+      document.getElementById('statReward').innerText = lastReward.toFixed(1);
+
+      if (stepHistory.length > 0) {
+        const recent = stepHistory.slice(-10);
+        const avg = (recent.reduce((a, b) => a + b, 0) / recent.length).toFixed(1);
+        document.getElementById('statAvgSteps').innerText = avg;
+      }
+      drawChart();
+    }
+
+    // --- Interactive Grid Tooling ---
+    function applyTool(e) {
+      const rect = canvas.getBoundingClientRect();
+      const scaleX = canvas.width / rect.width;
+      const scaleY = canvas.height / rect.height;
+      const x = (e.clientX - rect.left) * scaleX;
+      const y = (e.clientY - rect.top) * scaleY;
+
+      const c = Math.floor(x / CELL_SIZE);
+      const r = Math.floor(y / CELL_SIZE);
+
+      if (r < 0 || r >= GRID_SIZE || c < 0 || c >= GRID_SIZE) return;
+
+      if (currentTool === 'start') {
+        startPos = { r, c };
+        grid[r][c] = CELL_EMPTY;
+        resetAgent();
+      } else if (currentTool === 'goal') {
+        goalPos = { r, c };
+        grid[r][c] = CELL_EMPTY;
+      } else if (currentTool === 'wall') {
+        if ((r !== startPos.r || c !== startPos.c) && (r !== goalPos.r || c !== goalPos.c)) {
+          grid[r][c] = CELL_WALL;
+        }
+      } else if (currentTool === 'trap') {
+        if ((r !== startPos.r || c !== startPos.c) && (r !== goalPos.r || c !== goalPos.c)) {
+          grid[r][c] = CELL_TRAP;
+        }
+      } else if (currentTool === 'clear') {
+        grid[r][c] = CELL_EMPTY;
+      }
+      render();
+    }
+
+    canvas.addEventListener('mousedown', (e) => {
+      isMouseDown = true;
+      applyTool(e);
+    });
+
+    canvas.addEventListener('mousemove', (e) => {
+      if (isMouseDown && (currentTool === 'wall' || currentTool === 'trap' || currentTool === 'clear')) {
+        applyTool(e);
+      }
+    });
+
+    window.addEventListener('mouseup', () => { isMouseDown = false; });
+
+    // Tool selector
+    document.querySelectorAll('.tool-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.tool-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        currentTool = btn.dataset.tool;
+      });
+    });
+
+    // Control buttons
+    document.getElementById('btnPlay').addEventListener('click', togglePlay);
+    document.getElementById('btnStep').addEventListener('click', () => {
+      if (isRunning) togglePlay();
+      stepEnvironment();
+      render();
+    });
+    document.getElementById('btnFastTrain').addEventListener('click', () => fastTrain(100));
+    document.getElementById('btnResetAgent').addEventListener('click', resetAgent);
+    document.getElementById('btnResetQ').addEventListener('click', () => {
+      initQ();
+      episodeCount = 0;
+      stepHistory = [];
+      rewardHistory = [];
+      resetAgent();
+      updateStats();
+      render();
+    });
+
+    document.getElementById('btnShowPolicy').addEventListener('click', () => {
+      showPolicyArrows = !showPolicyArrows;
+      document.getElementById('btnShowPolicy').innerText = `🔄 Policy Arrows: ${showPolicyArrows ? 'ON' : 'OFF'}`;
+      render();
+    });
+
+    document.getElementById('presetSelect').addEventListener('change', (e) => {
+      loadPreset(e.target.value);
+    });
+
+    // Hyperparameter sliders
+    document.getElementById('sliderAlpha').addEventListener('input', (e) => {
+      alpha = parseFloat(e.target.value);
+      document.getElementById('valAlpha').innerText = alpha.toFixed(2);
+    });
+    document.getElementById('sliderGamma').addEventListener('input', (e) => {
+      gamma = parseFloat(e.target.value);
+      document.getElementById('valGamma').innerText = gamma.toFixed(2);
+    });
+    document.getElementById('sliderEpsilon').addEventListener('input', (e) => {
+      epsilon = parseFloat(e.target.value);
+      document.getElementById('valEpsilon').innerText = epsilon.toFixed(2);
+    });
+    document.getElementById('chkEpsilonDecay').addEventListener('change', (e) => {
+      epsilonDecay = e.target.checked;
+    });
+    document.getElementById('sliderSpeed').addEventListener('input', (e) => {
+      speedDelay = parseInt(e.target.value);
+      document.getElementById('valSpeed').innerText = `${speedDelay} ms`;
+    });
+
+    // Initialization
+    initQ();
+    loadPreset('classic');
+  </script>
+</body>
+</html>
